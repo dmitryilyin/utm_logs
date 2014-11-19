@@ -12,11 +12,11 @@ module UtmLogs
     end
 
     def debug_level
-      options[:debug]
+      options.debug
     end
 
     def dry_run?
-      options[:dry_run]
+      options.dry_run
     end
 
     def debug(msg, level=1)

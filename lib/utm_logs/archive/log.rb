@@ -43,56 +43,70 @@ module UtmLogs
 
       def compress!
         @compression_enabled = true
-        interface.debug "Compress file '#{path}' to #{archive_path}", 2
+        interface.debug "Compress file '#{path}' to #{archive_path}", 1
         return if interface.dry_run?
+        if File.identical? path, archive_path
+          interface.warning "Files #{path} and #{archive_path} are identical!"
+          return
+        end
         gz = Zlib::GzipWriter.open(archive_path)
         gz.mtime = File.mtime(path)
         gz.orig_name = name
         gz.comment = date_suffix
-        written_size = gz.write IO.binread(path)
+        content = open(path, 'rb') { |io| io.read }
+        written_size = gz.write content
         gz.close
-        if file_size == written_size
-          true
-        else
+        if file_size != written_size
           remove_archive!
           raise "Compression of file '#{path}' to #{archive_path} failed!"
         end
       end
 
       def remove_file!
-        interface.debug "Remove file '#{path}'", 2
+        interface.debug "Remove file '#{path}'", 1
         return if interface.dry_run?
         FileUtils.remove path if File.exist? path
       end
 
       def remove_archive!
-        interface.debug "Remove file '#{path}'", 2
+        interface.debug "Remove file '#{path}'", 1
         return if interface.dry_run?
         FileUtils.remove archive_path if File.exist? archive_path
       end
 
       def move!
-        interface.debug "Move file '#{path}' to '#{archive_path}'", 2
+        interface.debug "Move file '#{path}' to '#{archive_path}'", 1
         return if interface.dry_run?
+        return if archive_and_file_same?
         FileUtils.move path, archive_path
       end
 
       def copy!
-        interface.debug "Copy file '#{path}' to '#{archive_path}'", 2
+        interface.debug "Copy file '#{path}' to '#{archive_path}'", 1
         return if interface.dry_run?
+        return if archive_and_file_same?
         FileUtils.copy path, archive_path
       end
 
       def symlink!
-        interface.debug "Symlink file '#{path}' to '#{archive_path}'", 2
+        interface.debug "Symlink file '#{path}' to '#{archive_path}'", 1
         return if interface.dry_run?
+        return if archive_and_file_same?
         FileUtils.symlink path, archive_path
       end
 
       def hardlink!
-        interface.debug "Hardlink file '#{path}' to '#{archive_path}'", 2
+        interface.debug "Hardlink file '#{path}' to '#{archive_path}'", 1
         return if interface.dry_run?
+        return if archive_and_file_same?
         FileUtils.link path, archive_path
+      end
+
+      # @return [TrueClass,FalseClass]
+      def archive_and_file_same?
+        out = File.identical? path, archive_path
+        interface.debug "Files '#{path}' and '#{archive_path}' are same!", 1 if out
+        out
       end
 
       # @return [String]
@@ -100,16 +114,11 @@ module UtmLogs
         File.size? path
       end
 
-      # @return [String]
-      def name_without_extension
-        name.split('.').first
-      end
-
-      # @return [DateTime]
+      # @return [Time]
       def datetime
         return @datetime if @datetime
         time = Time.at timestamp
-        @datetime = time.localtime.to_datetime
+        @datetime = time.localtime
       end
 
       # @return [String]
@@ -119,7 +128,7 @@ module UtmLogs
 
       # @return [String]
       def archive_name
-        archive_name = "#{name_without_extension}-#{date_suffix}.utm"
+        archive_name = "iptraffic_raw_#{timestamp}-#{date_suffix}.utm"
         archive_name += '.gz' if compression_enabled? or compressed?
         archive_name
       end
@@ -160,7 +169,7 @@ module UtmLogs
 
       # @return [String]
       def archive_dir
-        interface.options[:archive_dir]
+        interface.options.archive_dir
       end
 
       # @return [String]

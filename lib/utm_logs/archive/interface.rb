@@ -11,11 +11,11 @@ module UtmLogs
       include UtmLogs::Interface
 
       def log_dir
-        options[:log_dir]
+        options.log_dir
       end
 
       def archive_dir
-        options[:archive_dir]
+        options.archive_dir
       end
 
       def initialize
@@ -98,7 +98,7 @@ module UtmLogs
             next
           end
           if File.fnmatch? '*.utm', file or File.fnmatch? '*.utm.gz', file
-            debug "Processing file: #{file}", 3
+            debug "Processing file: #{file}", 1
             begin
               yield UtmLogs::Archive::Log.new(file, self)
             rescue => e
